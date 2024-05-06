@@ -14,9 +14,11 @@ keywords = ["surrealdb", "surreal", "database", "derive", "schema"]
 proc-macro2 = "1.0.81"
 quote = "1.0.36"
 syn = { version = "2.0.60", features = ["full"] }
+surrealdb = { version = "1.4.2", optional = true }
 
 [lib]
 proc-macro = true
 
 [features]
 default = []
+with_query_validation = ["dep:surrealdb"]
