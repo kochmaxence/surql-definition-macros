@@ -1,7 +1,7 @@
-use syn::{meta::ParseNestedMeta, Data, DeriveInput, Lit};
+use syn::{meta::ParseNestedMeta, Data, DeriveInput, Field, Lit};
 
 use crate::{
-    permission::parse_permissions_attributes,
+    permission::{parse_permissions_attributes, PermissionInfo},
     type_conv::{format_lit_as_expr, SurrealDBType},
 };
 
@@ -13,10 +13,7 @@ pub(crate) struct FieldInfo {
     readonly: bool,
     value: Option<String>,
     assertion: Option<String>,
-    select_perm: Option<String>,
-    create_perm: Option<String>,
-    update_perm: Option<String>,
-    delete_perm: Option<String>,
+    permissions: Vec<PermissionInfo>,
 }
 
 impl FieldInfo {
@@ -30,75 +27,61 @@ impl FieldInfo {
             self.readonly,
             &self.value,
             &self.assertion,
-            &self.select_perm,
-            &self.create_perm,
-            &self.update_perm,
-            &self.delete_perm,
+            &self.permissions,
         )
+    }
+}
+
+impl From<&Field> for FieldInfo {
+    fn from(f: &Field) -> Self {
+        let name = f.ident.as_ref().unwrap().to_string();
+        let mut field_type = SurrealDBType::from(&f.ty);
+        let mut type_is_flexible = false;
+        let mut assertion = None;
+        let mut default = None;
+        let mut readonly = false;
+        let mut value = None;
+        let mut permissions: Vec<PermissionInfo> = vec![];
+
+        for attr in &f.attrs {
+            if attr.path().is_ident("surql_field") {
+                attr.parse_nested_meta(|meta| {
+                    parse_field_attributes(
+                        meta,
+                        &mut type_is_flexible,
+                        &mut field_type,
+                        &mut assertion,
+                        &mut default,
+                        &mut readonly,
+                        &mut value,
+                    )
+                })
+                .expect("Failed to parse field attribute");
+            } else if attr.path().is_ident("surql_field_permissions") {
+                attr.parse_nested_meta(|meta| {
+                    permissions.push(parse_permissions_attributes(meta).unwrap());
+                    Ok(())
+                })
+                .expect("Failed to parse field permissions attribute");
+            }
+        }
+
+        FieldInfo {
+            name,
+            field_type,
+            type_is_flexible,
+            default,
+            readonly,
+            value,
+            assertion,
+            permissions,
+        }
     }
 }
 
 pub(crate) fn parse_fields(input: &DeriveInput) -> Vec<FieldInfo> {
     if let Data::Struct(data_struct) = &input.data {
-        data_struct
-            .fields
-            .iter()
-            .map(|f| {
-                let name = f.ident.as_ref().unwrap().to_string();
-                let mut field_type = SurrealDBType::from(&f.ty);
-                let mut type_is_flexible = false;
-                let mut assertion = None;
-                let mut default = None;
-                let mut readonly = false;
-                let mut value = None;
-                let mut select_perm = None;
-                let mut create_perm = None;
-                let mut update_perm = None;
-                let mut delete_perm = None;
-
-                for attr in &f.attrs {
-                    if attr.path().is_ident("surql_field") {
-                        attr.parse_nested_meta(|meta| {
-                            parse_field_attributes(
-                                meta,
-                                &mut type_is_flexible,
-                                &mut field_type,
-                                &mut assertion,
-                                &mut default,
-                                &mut readonly,
-                                &mut value,
-                            )
-                        })
-                        .expect("Failed to parse field attribute");
-                    } else if attr.path().is_ident("surql_field_permissions") {
-                        attr.parse_nested_meta(|meta| {
-                            parse_permissions_attributes(
-                                meta,
-                                &mut select_perm,
-                                &mut create_perm,
-                                &mut update_perm,
-                                &mut delete_perm,
-                            )
-                        })
-                        .expect("Failed to parse field permissions attribute");
-                    }
-                }
-
-                FieldInfo {
-                    name,
-                    field_type,
-                    type_is_flexible,
-                    default,
-                    readonly,
-                    value,
-                    assertion,
-                    select_perm,
-                    create_perm,
-                    update_perm,
-                    delete_perm,
-                }
-            })
-            .collect()
+        data_struct.fields.iter().map(FieldInfo::from).collect()
     } else {
         panic!("Unsupported data type")
     }
@@ -163,10 +146,7 @@ fn build_define_field_query(
     readonly: bool,
     value: &Option<String>,
     assertion: &Option<String>,
-    select_perm: &Option<String>,
-    create_perm: &Option<String>,
-    update_perm: &Option<String>,
-    delete_perm: &Option<String>,
+    permissions: &Vec<PermissionInfo>,
 ) -> String {
     let mut define_field = format!("DEFINE FIELD {} ON {}", field_name, table_name);
 
@@ -189,27 +169,14 @@ fn build_define_field_query(
         define_field.push_str(&format!(" ASSERT {}", assertion));
     }
 
-    let permissions = vec![
-        select_perm
-            .as_ref()
-            .map(|perm| format!("FOR select {}", perm)),
-        create_perm
-            .as_ref()
-            .map(|perm| format!("FOR create {}", perm)),
-        update_perm
-            .as_ref()
-            .map(|perm| format!("FOR update {}", perm)),
-        delete_perm
-            .as_ref()
-            .map(|perm| format!("FOR delete {}", perm)),
-    ]
-    .into_iter()
-    .filter_map(|x| x)
-    .collect::<Vec<_>>();
+    let permissions_str = permissions
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<String>>();
 
     if !permissions.is_empty() {
         define_field.push_str(" PERMISSIONS ");
-        define_field.push_str(&permissions.join(" "));
+        define_field.push_str(&permissions_str.join(" "));
     }
 
     if !define_field.ends_with(";") {

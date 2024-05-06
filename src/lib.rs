@@ -18,7 +18,7 @@ mod type_conv;
         surql_field_permissions
     )
 )]
-pub fn surreal_db_derive(input: TokenStream) -> TokenStream {
+pub fn surql_definition_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let table_info = TableInfo::from_derive_input(&input);
     let struct_name = &input.ident;

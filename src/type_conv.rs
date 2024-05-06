@@ -41,19 +41,19 @@ impl ToString for SurrealDBType {
     }
 }
 
-pub(crate) enum TypeFrom {
-    Rust(String),
-    SurrealDB(String),
-}
+// pub(crate) enum TypeFrom {
+//     Rust(String),
+//     SurrealDB(String),
+// }
 
-impl From<TypeFrom> for SurrealDBType {
-    fn from(value: TypeFrom) -> Self {
-        match value {
-            TypeFrom::Rust(inner) => todo!(),
-            TypeFrom::SurrealDB(inner) => inner.into(),
-        }
-    }
-}
+// impl From<TypeFrom> for SurrealDBType {
+//     fn from(value: TypeFrom) -> Self {
+//         match value {
+//             TypeFrom::Rust(inner) => todo!(),
+//             TypeFrom::SurrealDB(inner) => inner.into(),
+//         }
+//     }
+// }
 
 impl From<String> for SurrealDBType {
     fn from(value: String) -> Self {

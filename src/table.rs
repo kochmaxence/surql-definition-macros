@@ -2,7 +2,7 @@ use syn::DeriveInput;
 
 use crate::{
     field::{parse_fields, FieldInfo},
-    permission::{format_permissions, parse_permissions_attributes},
+    permission::{format_permissions, parse_permissions_attributes, PermissionInfo},
 };
 
 pub(crate) struct TableInfo {
@@ -46,10 +46,8 @@ impl TableInfo {
 fn parse_table_attributes(input: &DeriveInput) -> (Option<String>, String, Option<String>) {
     let mut custom_query = None;
     let mut explicit_table_name = None;
-    let mut select_perm = None;
-    let mut create_perm = None;
-    let mut update_perm = None;
-    let mut delete_perm = None;
+
+    let mut perms: Vec<PermissionInfo> = vec![];
 
     for attr in &input.attrs {
         if attr.path().is_ident("surql_query") {
@@ -60,20 +58,15 @@ fn parse_table_attributes(input: &DeriveInput) -> (Option<String>, String, Optio
             explicit_table_name = Some(lit.value());
         } else if attr.path().is_ident("surql_table_permissions") {
             attr.parse_nested_meta(|meta| {
-                parse_permissions_attributes(
-                    meta,
-                    &mut select_perm,
-                    &mut create_perm,
-                    &mut update_perm,
-                    &mut delete_perm,
-                )
+                perms.push(parse_permissions_attributes(meta).unwrap());
+                Ok(())
             })
             .expect("Failed to parse table permissions attribute");
         }
     }
 
     let table_name = explicit_table_name.unwrap_or_else(|| input.ident.to_string().to_lowercase());
-    let permissions = format_permissions(select_perm, create_perm, update_perm, delete_perm);
+    let permissions = format_permissions(perms);
 
     (custom_query, table_name, permissions)
 }

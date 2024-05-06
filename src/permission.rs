@@ -1,63 +1,92 @@
+use std::fmt;
+
 use syn::{meta::ParseNestedMeta, Lit};
 
 use crate::type_conv::format_lit_as_expr;
 
-pub(crate) fn parse_permissions_attributes(
-    meta: ParseNestedMeta,
-    select_perm: &mut Option<String>,
-    create_perm: &mut Option<String>,
-    update_perm: &mut Option<String>,
-    delete_perm: &mut Option<String>,
-) -> syn::Result<()> {
-    let attribute_name = meta
-        .path
-        .get_ident()
-        .map(|ident| ident.to_string())
-        .unwrap_or_default();
+pub(crate) struct PermissionData {
+    value: String,
+}
 
-    let lit: Lit = meta.value()?.parse()?;
-    let perm_value = format_lit_as_expr(lit);
-
-    match attribute_name.as_str() {
-        "SELECT" => {
-            *select_perm = Some(perm_value);
-            Ok(())
-        }
-        "CREATE" => {
-            *create_perm = Some(perm_value);
-            Ok(())
-        }
-        "UPDATE" => {
-            *update_perm = Some(perm_value);
-            Ok(())
-        }
-        "DELETE" => {
-            *delete_perm = Some(perm_value);
-            Ok(())
-        }
-        _ => Err(meta.error("Unrecognized permission type")),
+impl From<String> for PermissionData {
+    fn from(value: String) -> Self {
+        Self { value }
     }
 }
 
-pub(crate) fn format_permissions(
-    select_perm: Option<String>,
-    create_perm: Option<String>,
-    update_perm: Option<String>,
-    delete_perm: Option<String>,
-) -> Option<String> {
-    let permissions = vec![
-        select_perm.map(|perm| format!("FOR select {}", perm)),
-        create_perm.map(|perm| format!("FOR create {}", perm)),
-        update_perm.map(|perm| format!("FOR update {}", perm)),
-        delete_perm.map(|perm| format!("FOR delete {}", perm)),
-    ]
-    .into_iter()
-    .filter_map(|x| x)
-    .collect::<Vec<_>>();
+impl Into<String> for PermissionData {
+    fn into(self) -> String {
+        self.value
+    }
+}
 
-    if permissions.is_empty() {
+impl ToString for PermissionData {
+    fn to_string(&self) -> String {
+        self.value.clone()
+    }
+}
+
+pub(crate) enum PermissionInfo {
+    Select(PermissionData),
+    Create(PermissionData),
+    Update(PermissionData),
+    Delete(PermissionData),
+}
+
+impl TryFrom<ParseNestedMeta<'_>> for PermissionInfo {
+    type Error = syn::Error;
+
+    fn try_from(meta: ParseNestedMeta<'_>) -> Result<Self, Self::Error> {
+        let attribute_name = meta
+            .path
+            .get_ident()
+            .map(|ident| ident.to_string())
+            .unwrap_or_default();
+
+        let lit: Lit = meta.value()?.parse()?;
+        let perm_value = format_lit_as_expr(lit);
+
+        match attribute_name.as_str() {
+            "SELECT" => Ok(Self::Select(PermissionData::from(perm_value))),
+            "CREATE" => Ok(Self::Create(PermissionData::from(perm_value))),
+            "UPDATE" => Ok(Self::Update(PermissionData::from(perm_value))),
+            "DELETE" => Ok(Self::Delete(PermissionData::from(perm_value))),
+            _ => Err(meta.error("Unrecognized permission type")),
+        }
+    }
+}
+
+impl fmt::Display for PermissionInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let formatted_string: String = match self {
+            PermissionInfo::Select(inner) => format!("FOR select {}", inner.to_string()),
+            PermissionInfo::Create(inner) => format!("FOR create {}", inner.to_string()),
+            PermissionInfo::Update(inner) => format!("FOR update {}", inner.to_string()),
+            PermissionInfo::Delete(inner) => format!("FOR delete {}", inner.to_string()),
+        };
+        write!(f, "{}", formatted_string)
+    }
+}
+
+impl Into<String> for PermissionInfo {
+    fn into(self) -> String {
+        self.to_string()
+    }
+}
+
+pub(crate) fn parse_permissions_attributes(meta: ParseNestedMeta) -> syn::Result<PermissionInfo> {
+    PermissionInfo::try_from(meta)
+}
+
+pub(crate) fn format_permissions(permissions: Vec<PermissionInfo>) -> Option<String> {
+    let permissions_str: Vec<String> = permissions
+        .into_iter()
+        .map(|x| x.into())
+        .collect::<Vec<_>>();
+
+    if permissions_str.is_empty() {
         None
     } else {
-        Some(permissions.join(" "))
+        Some(permissions_str.join(" "))
     }
 }
