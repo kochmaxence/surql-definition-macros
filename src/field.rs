@@ -2,7 +2,7 @@ use syn::{meta::ParseNestedMeta, Data, DeriveInput, Lit};
 
 use crate::{
     permission::parse_permissions_attributes,
-    type_conv::{format_lit_as_expr, rust_type_to_surrealdb_type, SurrealDBType},
+    type_conv::{format_lit_as_expr, SurrealDBType},
 };
 
 pub(crate) struct FieldInfo {
@@ -45,7 +45,7 @@ pub(crate) fn parse_fields(input: &DeriveInput) -> Vec<FieldInfo> {
             .iter()
             .map(|f| {
                 let name = f.ident.as_ref().unwrap().to_string();
-                let mut field_type = rust_type_to_surrealdb_type(&f.ty);
+                let mut field_type = SurrealDBType::from(&f.ty);
                 let mut type_is_flexible = false;
                 let mut assertion = None;
                 let mut default = None;
