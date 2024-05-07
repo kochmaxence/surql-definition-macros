@@ -1,0 +1,13 @@
+[package]
+name = "surql-definition"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+surql-definition-macros = { path = "../surql-definition-macros" }
+surql-definition-core = { path = "../surql-definition-core" }
+
+[features]
+default = []
+runtime_query_validation = ["surql-definition-macros/runtime_query_validation"]
+compile_query_validation = ["surql-definition-macros/compile_query_validation"]

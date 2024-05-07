@@ -4,6 +4,7 @@ use syn::{meta::ParseNestedMeta, Lit};
 
 use crate::type_conv::format_lit_as_expr;
 
+#[derive(Clone)]
 pub(crate) struct PermissionData {
     value: String,
 }
@@ -26,6 +27,7 @@ impl ToString for PermissionData {
     }
 }
 
+#[derive(Clone)]
 pub(crate) enum PermissionInfo {
     Select(PermissionData),
     Create(PermissionData),
