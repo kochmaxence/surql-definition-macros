@@ -24,6 +24,22 @@ mod tests {
     }
 
     #[test]
+    fn test_complex_struct() {
+        #[derive(SurQLDefinition)]
+        struct ComplexStruct {
+            // Type inferred from Rust type
+            option_string: Option<String>,
+
+            complex_vec: Vec<Vec<Vec<i32>>>,
+
+            complex_mixed: Option<Vec<Option<String>>>,
+        }
+
+        let expected = "DEFINE TABLE complexstruct; DEFINE FIELD option_string ON complexstruct TYPE option<string>; DEFINE FIELD complex_vec ON complexstruct TYPE array<array<array<int>>>; DEFINE FIELD complex_mixed ON complexstruct TYPE option<array<option<string>>>;";
+        assert_eq!(ComplexStruct::schema_query(), expected);
+    }
+
+    #[test]
     fn test_float_struct() {
         #[derive(SurQLDefinition)]
         #[surql_table("float_table")]
@@ -89,7 +105,7 @@ mod tests {
             #[surql_field(TYPE = "int", VALUE = 2, READONLY)]
             readonly_field: i32,
         }
-        let expected = "DEFINE TABLE readonly_table; DEFINE FIELD readonly_field ON readonly_table TYPE int READONLY;";
+        let expected = "DEFINE TABLE readonly_table; DEFINE FIELD readonly_field ON readonly_table TYPE int VALUE 2 READONLY;";
         assert_eq!(ReadonlyStruct::schema_query(), expected);
     }
 
