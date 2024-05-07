@@ -26,7 +26,7 @@ Add `surql-definition-macros` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-surql-definition-macros = "0.1.0"
+surql-definition-macros = "0.2.1"
 ```
 
 ## Usage
@@ -91,7 +91,7 @@ To enable validation, update your `Cargo.toml`:
 
 ```toml
 [dependencies]
-surql-definition-macros = { version = "0.1.0", features = ["runtime_query_validation"] }
+surql-definition-macros = { version = "0.2.1", features = ["runtime_query_validation"] }
 ```
 
 ## License

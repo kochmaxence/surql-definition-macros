@@ -30,7 +30,9 @@ pub fn surreal_db_derive(input: TokenStream) -> TokenStream {
 
             #[cfg(feature = "compile_query_validation")]
             if let Err(e) = surrealdb_core::sql::parse(&query)
-                .map_err(|err| syn::Error::new_spanned(&input, format!("{}\nQuery: {}", err, query)))
+                .map_err(|err| {
+                    syn::Error::new_spanned(&input, format!("{}\nQuery: {}", err, query))
+                })
                 .map_err(|err| TokenStream::from(err.into_compile_error()))
             {
                 return e;

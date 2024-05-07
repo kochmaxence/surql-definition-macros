@@ -68,7 +68,6 @@ impl FieldInfo {
             define_field.push_str(&permissions_str.join(" "));
         }
 
-
         if !define_field.ends_with(";") {
             define_field.push_str(";");
         }

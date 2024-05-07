@@ -1,185 +1,223 @@
-# surql-definition-macros
+# `surql-definition`
 
-A Rust procedural macro for generating SurrealDB table and field definitions.
+`surql-definition` is a unified Rust library for generating SurrealDB table and field definitions. The library is composed of three crates:
 
-## Overview
+1. `surql-definition-core`: Provides core utilities and traits for generating SurrealDB schema queries.
+2. `surql-definition-macros`: A procedural macro crate for generating SurrealDB table and field definitions.
+3. `surql-definition`: A high-level crate that re-exports functionality from the other two crates.
 
-`surql-definition-macros` provides a convenient way to define [SurrealDB](https://surrealdb.com/) tables and fields directly from Rust structs. The macro allows you to specify custom attributes, making it easy to set up table schemas and field properties using SurrealQL. It supports both auto-generated and explicitly defined table and field attributes.
+## Table of Contents
 
-## Goals
-
-- Provide a user-friendly way to define SurrealDB tables and fields using Rust.
-- Offer customization of table and field properties via attributes.
-- Generate SurrealQL queries for defining table schemas.
-- Allow specifying permissions for tables and fields using SurrealQL syntax.
-
-## Non-Goals
-
-- Execute the generated SurrealQL queries. `surql-definition-macros` does not depend on SurrealDB or interact with the database directly.
+1. [Features](#features)
+2. [Crate Relationships](#crate-relationships)
+3. [Installation](#installation)
+4. [Usage](#usage)
+5. [Examples](#examples)
+    1. [Defining a Table with Default Settings](#defining-a-table-with-default-settings)
+    2. [Customizing Field Types and Attributes](#customizing-field-types-and-attributes)
+    3. [Setting Permissions](#setting-permissions)
+    4. [Customizing Table Names and Queries](#customizing-table-names-and-queries)
+6. [Validation](#validation)
+7. [Feature Flags](#feature-flags)
+8. [License](#license)
+9. [Links](#links)
 
 ## Features
 
-- **Auto-generate or explicitly define table definitions** from Rust structs.
-- **Customize field properties** using attributes.
-- **Specify table and field permissions** using SurrealQL syntax.
-- **Easily integrate with SurrealDB** to manage your data models.
+- Automatically generates SurrealDB table and field definitions from Rust structs.
+- Supports flexible types, default values, assertions, and permissions.
+- Provides runtime and compile-time query validation options.
 
-## Usage
+## Crate Relationships
 
-Add `surql-definition-macros` as a dependency in your `Cargo.toml` file:
+### `surql-definition-core`
+
+`surql-definition-core` provides the core functionality for SurrealDB schema generation. It includes the `SurQLSchemaProducer` trait, which defines a method for generating schema queries, and a utility function `to_snake_case` for converting strings to snake case.
+
+### `surql-definition-macros`
+
+`surql-definition-macros` is a procedural macro crate that facilitates the creation of SurrealDB schemas through the `SurQLDefinition` derive macro. It builds upon the functionality provided by `surql-definition-core`.
+
+### `surql-definition`
+
+`surql-definition` serves as the high-level interface for the other two crates. It re-exports both the `SurQLDefinition` derive macro from `surql-definition-macros` and the `SurQLSchemaProducer` trait from `surql-definition-core`.
+
+## Installation
+
+Add `surql-definition` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-surql-definition-macros = "0.1"
+surql-definition = "0.2.1"
 ```
 
-Then, derive `SurQLDefinition` for your struct:
+## Usage
+
+To use `surql-definition`, import the relevant items as needed:
 
 ```rust
-use surql_definition_macros::SurQLDefinition;
-
-#[derive(SurQLDefinition)]
-#[surql_table("user")]
-struct User {
-    #[surql_field(TYPE = "string")]
-    name: String,
-    #[surql_field(TYPE = "int", DEFAULT = 30)]
-    age: i32,
-}
+use surql_definition::{SurQLDefinition, SurQLSchemaProducer};
 ```
-
-This will generate a SurrealQL query for the `User` struct:
-
-```rust
-impl User {
-    pub fn schema_query() -> String {
-        "DEFINE TABLE user; DEFINE FIELD name ON user TYPE string; DEFINE FIELD age ON user TYPE int DEFAULT 30;".to_string()
-    }
-}
-```
-
-### Attributes
-
-- **`surql_table`**:
-  - Specifies the table name.
-
-- **`surql_query`**:
-  - Specifies a custom SurrealQL query.
-
-- **`surql_field`**:
-  - **`TYPE`**: Specifies the field type.
-  - **`DEFAULT`**: Specifies the default value for the field.
-  - **`READONLY`**: Sets the field as read-only.
-  - **`VALUE`**: Specifies the value for the field.
-  - **`ASSERT`**: Specifies a condition for the field.
-  - **`FLEXIBLE`**: Allows flexible typing for the field.
-
-- **`surql_table_permissions`** / **`surql_field_permissions`**:
-  - **`SELECT`**: Specifies the permissions for the select operation.
-  - **`CREATE`**: Specifies the permissions for the create operation.
-  - **`UPDATE`**: Specifies the permissions for the update operation.
-  - **`DELETE`**: Specifies the permissions for the delete operation.
 
 ## Examples
 
-### Basic Example
+### Defining a Table with Default Settings
+
+The following example demonstrates how to use the `SurQLDefinition` macro to define a SurrealDB table with default settings:
 
 ```rust
-use surql_definition_macros::SurQLDefinition;
+use surql_definition::SurQLDefinition;
+use surrealdb::sql::Thing;
 
 #[derive(SurQLDefinition)]
-#[surql_table("user")]
 struct User {
-    #[surql_field(TYPE = "string")]
+    #[surql_field(TYPE = "record")]
+    id: Thing,
     name: String,
-    #[surql_field(TYPE = "int", DEFAULT = 30)]
-    age: i32,
+    email: String,
 }
 
 assert_eq!(
     User::schema_query(),
-    "DEFINE TABLE user; DEFINE FIELD name ON user TYPE string; DEFINE FIELD age ON user TYPE int DEFAULT 30;".to_string()
+    "DEFINE TABLE user; DEFINE FIELD id ON user TYPE record; DEFINE FIELD name ON user TYPE string; DEFINE FIELD email ON user TYPE string;"
 );
 ```
 
-### Table Permissions
+### Customizing Field Types and Attributes
+
+You can customize field types, set default values, and add assertions using the `surql_field` attribute:
 
 ```rust
-use surql_definition_macros::SurQLDefinition;
+use surql_definition::SurQLDefinition;
+use surrealdb::sql::Thing;
 
 #[derive(SurQLDefinition)]
-#[surql_table_permissions(SELECT = "user = true")]
-struct User {
+struct Product {
+    #[surql_field(TYPE = "record")]
+    id: Thing,
     #[surql_field(TYPE = "string")]
     name: String,
-    #[surql_field(TYPE = "int")]
-    age: i32,
-}
-
-assert_eq!(
-    User::schema_query(),
-    "DEFINE TABLE user PERMISSIONS FOR select user = true; DEFINE FIELD name ON user TYPE string; DEFINE FIELD age ON user TYPE int;".to_string()
-);
-```
-
-### Flexible Field
-
-```rust
-use surql_definition_macros::SurQLDefinition;
-
-#[surql_table("string_table")]
-struct StringStruct {
+    #[surql_field(TYPE = "number", DEFAULT = "10.99")]
+    price: f64,
+    #[surql_field(TYPE = "bool", ASSERT = "$value == true")]
+    available: bool,
     #[surql_field(TYPE = "string", FLEXIBLE)]
-    flexible_string: String,
+    description: String,
+    #[surql_field(TYPE = "number", READONLY)]
+    rating: f64,
 }
 
 assert_eq!(
-    StringStruct::schema_query(),
-    "DEFINE TABLE string_table; DEFINE FIELD flexible_string ON string_table FLEXIBLE TYPE string;".to_string()
+    Product::schema_query(),
+    "DEFINE TABLE product; \
+    DEFINE FIELD id ON product TYPE record; \
+    DEFINE FIELD name ON product TYPE string; \
+    DEFINE FIELD price ON product TYPE number DEFAULT 10.99; \
+    DEFINE FIELD available ON product TYPE bool ASSERT $value == true; \
+    DEFINE FIELD description ON product FLEXIBLE TYPE string; \
+    DEFINE FIELD rating ON product TYPE number READONLY;"
 );
 ```
 
-### Readonly Field
+### Setting Permissions
+
+You can define permissions for fields or the entire table:
 
 ```rust
-use surql_definition_macros::SurQLDefinition;
+use surql_definition::SurQLDefinition;
+use surrealdb::sql::Thing;
 
-#[surql_table("readonly_table")]
-struct ReadonlyStruct {
-    #[surql_field(TYPE = "int", READONLY)]
-    readonly_field: i32,
+#[derive(SurQLDefinition)]
+#[surql_table_permissions("FOR select WHERE $auth.role == 'admin'")]
+struct Order {
+    #[surql_field(TYPE = "record")]
+    id: Thing,
+    #[surql_field(TYPE = "number", PERMISSIONS = "FOR update WHERE $auth.role == 'admin'")]
+    amount: f64,
+    #[surql_field(TYPE = "string", PERMISSIONS = "FOR delete WHERE $auth.role == 'admin'")]
+    status: String,
 }
 
 assert_eq!(
-    ReadonlyStruct::schema_query(),
-    "DEFINE TABLE readonly_table; DEFINE FIELD readonly_field ON readonly_table TYPE int READONLY;".to_string()
+    Order::schema_query(),
+    "DEFINE TABLE order PERMISSIONS FOR select WHERE $auth.role == 'admin'; \
+    DEFINE FIELD id ON order TYPE record; \
+    DEFINE FIELD amount ON order TYPE number PERMISSIONS FOR update WHERE $auth.role == 'admin'; \
+    DEFINE FIELD status ON order TYPE string PERMISSIONS FOR delete WHERE $auth.role == 'admin';"
 );
 ```
 
-### Custom Query
+### Customizing Table Names and Queries
+
+You can also customize table names and define custom queries:
 
 ```rust
-use surql_definition_macros::SurQLDefinition;
+use surql_definition::SurQLDefinition;
+use surrealdb::sql::Thing;
 
-#[surql_query("DEFINE TABLE person SCHEMAFULL;")]
-struct Person {
+#[derive(SurQLDefinition)]
+#[surql_table("custom_table_name")]
+#[surql_query("DEFINE TABLE custom_table_name (id INT, name STRING);")]
+struct CustomTable {
+    #[surql_field(TYPE = "record")]
+    id: Thing,
+    #[surql_field(TYPE = "string")]
     name: String,
 }
+```
 
-assert_eq!(
-    Person::schema_query(),
-    "DEFINE TABLE person SCHEMAFULL; DEFINE FIELD name ON person TYPE string;".to_string()
-);
+## Validation
+
+`surql-definition` supports runtime and compile-time validation of generated queries through the features provided by `surql-definition-macros`.
+
+To enable validation, update your `Cargo.toml`:
+
+```toml
+[dependencies]
+surql-definition = { version = "0.2.1", features = ["runtime_query_validation"] }
+```
+
+## Feature Flags
+
+### `runtime_query_validation`
+
+The `runtime_query_validation` feature enables validation of the generated SurrealDB queries at runtime. This feature imports `surrealdb-core` to perform the query validation.
+
+#### Example
+
+```toml
+[dependencies]
+surql-definition = { version = "0.2.1", features = ["runtime_query_validation"] }
+```
+
+### `compile_query_validation`
+
+The `compile_query_validation` feature enables validation of the generated SurrealDB queries at compile time. This feature also imports `surrealdb-core` for query validation.
+
+#### Example
+
+```toml
+[dependencies]
+surql-definition = { version = "0.2.1", features = ["compile_query_validation"] }
+```
+
+### Default
+
+If no feature flags are set, `surrealdb-core` is not imported. This is useful when validation is not required.
+
+#### Example
+
+```toml
+[dependencies]
+surql-definition = "0.2.1"
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Contributing
+## Links
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Acknowledgments
-
-Special thanks to the SurrealDB team for their excellent database technology.
+- [surql-definition-core](https://github.com/kochmaxence/surql-definition-macros/tree/main/surql-definition-core)
+- [surql-definition-macros](https://github.com/kochmaxence/surql-definition-macros/tree/main/surql-definition-macros)
+- [surql-definition](https://github.com/kochmaxence/surql-definition-macros/tree/main/surql-definition)

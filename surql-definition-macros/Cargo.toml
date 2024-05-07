@@ -1,6 +1,6 @@
 [package]
 name = "surql-definition-macros"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
 description = "A Rust procedural macro for generating SurrealDB table and field definitions."
@@ -14,8 +14,8 @@ keywords = ["surrealdb", "surreal", "database", "derive", "schema"]
 proc-macro2 = "1.0.81"
 quote = "1.0.36"
 syn = { version = "2.0.60", features = ["full"] }
-surrealdb-core = { git = "https://github.com/surrealdb/surrealdb", rev = "b9f02d1", optional = true }
-surql-definition-core = { path = "../surql-definition-core" }
+surrealdb-core = { version = "1.4.2", optional = true }
+surql-definition-core = { version = "0.2.1" }
 
 [lib]
 proc-macro = true

@@ -1,11 +1,17 @@
 [package]
 name = "surql-definition"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2021"
+license = "MIT"
+description = "A Rust procedural macro for generating SurrealDB table and field definitions."
+homepage = "https://github.com/kochmaxence/surql-definition-macros"
+repository = "https://github.com/kochmaxence/surql-definition-macros"
+readme = "README.md"
+keywords = ["surrealdb", "surreal", "database", "derive", "schema"]
 
 [dependencies]
-surql-definition-macros = { path = "../surql-definition-macros" }
-surql-definition-core = { path = "../surql-definition-core" }
+surql-definition-macros = { version = "0.2.1" }
+surql-definition-core = { version = "0.2.1" }
 
 [features]
 default = []

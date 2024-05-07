@@ -2,7 +2,8 @@ use surql_definition_core::to_snake_case;
 use syn::{DeriveInput, Error};
 
 use crate::{
-    field::FieldInfo, permission::{format_permissions, parse_permissions_attributes, PermissionInfo}
+    field::FieldInfo,
+    permission::{format_permissions, parse_permissions_attributes, PermissionInfo},
 };
 
 pub(crate) struct TableInfo {
@@ -42,28 +43,45 @@ impl TableInfo {
         })
     }
 
-    fn parse_table_attributes(input: &DeriveInput) -> Result<(Option<String>, String, Option<String>), Error> {
+    fn parse_table_attributes(
+        input: &DeriveInput,
+    ) -> Result<(Option<String>, String, Option<String>), Error> {
         let mut custom_query = None;
         let mut explicit_table_name = None;
         let mut perms: Vec<PermissionInfo> = vec![];
 
         for attr in &input.attrs {
             if attr.path().is_ident("surql_query") {
-                let lit: syn::LitStr = attr.parse_args().map_err(|e| Error::new_spanned(attr, format!("Expected a string literal: {}", e)))?;
+                let lit: syn::LitStr = attr.parse_args().map_err(|e| {
+                    Error::new_spanned(attr, format!("Expected a string literal: {}", e))
+                })?;
                 custom_query = Some(lit.value());
             } else if attr.path().is_ident("surql_table") {
-                let lit: syn::LitStr = attr.parse_args().map_err(|e| Error::new_spanned(attr, format!("Expected a string literal: {}", e)))?;
+                let lit: syn::LitStr = attr.parse_args().map_err(|e| {
+                    Error::new_spanned(attr, format!("Expected a string literal: {}", e))
+                })?;
                 explicit_table_name = Some(lit.value());
             } else if attr.path().is_ident("surql_table_permissions") {
                 attr.parse_nested_meta(|meta| {
-                    perms.push(parse_permissions_attributes(meta).map_err(|e| Error::new_spanned(attr, format!("Failed to parse permissions attribute: {}", e)))?);
+                    perms.push(parse_permissions_attributes(meta).map_err(|e| {
+                        Error::new_spanned(
+                            attr,
+                            format!("Failed to parse permissions attribute: {}", e),
+                        )
+                    })?);
                     Ok(())
                 })
-                .map_err(|e| Error::new_spanned(attr, format!("Failed to parse table permissions attribute: {}", e)))?;
+                .map_err(|e| {
+                    Error::new_spanned(
+                        attr,
+                        format!("Failed to parse table permissions attribute: {}", e),
+                    )
+                })?;
             }
         }
 
-        let table_name = explicit_table_name.unwrap_or_else(|| to_snake_case(&input.ident.to_string()));
+        let table_name =
+            explicit_table_name.unwrap_or_else(|| to_snake_case(&input.ident.to_string()));
         let permissions = format_permissions(perms);
 
         Ok((custom_query, table_name, permissions))

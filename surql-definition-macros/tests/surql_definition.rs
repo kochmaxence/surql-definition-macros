@@ -91,7 +91,10 @@ mod tests {
         #[surql_table("some_other_name")]
         struct ExplicitName;
 
-        assert_eq!(ExplicitName::schema_query(), "DEFINE TABLE some_other_name;");
+        assert_eq!(
+            ExplicitName::schema_query(),
+            "DEFINE TABLE some_other_name;"
+        );
     }
 
     #[test]
@@ -99,10 +102,13 @@ mod tests {
         #[derive(SurQLDefinition)]
         struct ExplicitType {
             #[surql_field(TYPE = "string")]
-            explicit_type: f64
+            explicit_type: f64,
         }
 
-        assert_eq!(ExplicitType::schema_query(), "DEFINE TABLE explicit_type; DEFINE FIELD explicit_type ON explicit_type TYPE string;");
+        assert_eq!(
+            ExplicitType::schema_query(),
+            "DEFINE TABLE explicit_type; DEFINE FIELD explicit_type ON explicit_type TYPE string;"
+        );
     }
 
     #[test]
