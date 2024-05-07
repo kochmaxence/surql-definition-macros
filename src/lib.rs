@@ -38,6 +38,10 @@ pub fn surreal_db_derive(input: TokenStream) -> TokenStream {
             /// Returns the SurrealQL query to define the table and its fields.
             pub fn #method_name() -> String {
                 let sql = #query;
+
+                #[cfg(feature = "with_query_validation")]
+                surrealdb::sql::parse(sql).unwrap();
+
                 sql.to_string()
             }
         }
